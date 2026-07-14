@@ -1,5 +1,6 @@
 package com.example.data.local
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -65,9 +66,17 @@ data class AppDataUsage(
     val uid: Int,
     val wifiBytes: Long,
     val mobileBytes: Long,
+    // defaultValue must match MIGRATION_3_4's "ADD COLUMN ... DEFAULT 0" exactly - Room validates
+    // the on-disk schema's column default against this on every DB open, and a mismatch here
+    // (e.g. leaving this annotation off) throws at runtime for any install that migrates through
+    // v3->v4 rather than creating the DB fresh at the latest version.
+    @ColumnInfo(defaultValue = "0")
     val foregroundWifiBytes: Long = 0,
+    @ColumnInfo(defaultValue = "0")
     val backgroundWifiBytes: Long = 0,
+    @ColumnInfo(defaultValue = "0")
     val foregroundMobileBytes: Long = 0,
+    @ColumnInfo(defaultValue = "0")
     val backgroundMobileBytes: Long = 0,
 )
 

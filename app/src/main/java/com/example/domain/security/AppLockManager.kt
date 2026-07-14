@@ -82,7 +82,13 @@ class AppLockManager @Inject constructor(
 
     fun setLockEnabled(enabled: Boolean) {
         preferences.setLockEnabled(enabled)
-        _lockState.value = if (enabled) LockState.Locked else LockState.Unlocked
+        // Enabling deliberately does NOT lock the current session - the user is standing in
+        // Settings mid-configuration (possibly without a PIN set yet), and slamming the lock
+        // screen down on them here would be a lockout trap. The lock takes effect on the next
+        // cold start / background-timeout, like every system app lock does.
+        if (!enabled) {
+            _lockState.value = LockState.Unlocked
+        }
     }
 
     fun setUnlockMethod(method: UnlockMethod) = preferences.setUnlockMethod(method)

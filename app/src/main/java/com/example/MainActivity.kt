@@ -5,12 +5,12 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.fragment.app.FragmentActivity
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -24,23 +24,30 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import com.example.domain.model.LockState
+import com.example.domain.security.BiometricAvailability
 import com.example.presentation.MainViewModel
 import com.example.presentation.permission.PermissionHelper
 import com.example.ui.components.CustomBottomBar
 import com.example.ui.components.PermissionOnboarding
 import com.example.ui.screens.DashboardScreen
+import com.example.ui.screens.LockScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.UsageHistoryScreen
 import com.example.ui.theme.MyApplicationTheme
 import dagger.hilt.android.AndroidEntryPoint
 
+// FragmentActivity (not plain ComponentActivity): BiometricPrompt refuses to show without a
+// FragmentActivity host - required for the Phase 0 lock screen. It's a ComponentActivity
+// subclass, so setContent/viewModels behave identically.
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
 
@@ -64,6 +71,22 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
+
+    // Phase 0 (App Lock): the gate sits above everything else - nothing renders until unlocked.
+    val lockState by viewModel.lockState.collectAsState()
+    val appLockSettings by viewModel.appLockSettings.collectAsState()
+    if (appLockSettings.lockEnabled && lockState == LockState.Locked) {
+        val biometricAvailable = remember { viewModel.biometricAvailability() == BiometricAvailability.AVAILABLE }
+        LockScreen(
+            hasPinConfigured = appLockSettings.hasPinConfigured,
+            unlockMethod = appLockSettings.unlockMethod,
+            biometricAvailable = biometricAvailable,
+            onVerifyPin = { viewModel.verifyAppLockPin(it) },
+            onUnlock = { viewModel.unlockApp() },
+        )
+        return
+    }
+
     val permissionsGranted by viewModel.permissionsGranted.collectAsState()
     val isServiceRunning by viewModel.isServiceRunning.collectAsState()
     val speedData by viewModel.realTimeSpeed.collectAsState()

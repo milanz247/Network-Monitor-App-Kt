@@ -16,6 +16,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material.icons.outlined.Block
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material.icons.outlined.Speed
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +37,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.presentation.SettingsViewModel
@@ -74,6 +83,13 @@ fun SettingsScreen(
     }
 }
 
+private data class MenuEntry(
+    val route: SettingsRoute,
+    val title: String,
+    val subtitle: String,
+    val icon: ImageVector,
+)
+
 @Composable
 private fun SettingsHub(
     isServiceRunning: Boolean,
@@ -83,13 +99,13 @@ private fun SettingsHub(
     val extended = LocalExtendedColors.current
 
     val menuItems = listOf(
-        Triple(SettingsRoute.APP_LOCK, "App Lock", "Biometric or PIN gate for the app"),
-        Triple(SettingsRoute.DIAGNOSTICS, "Speed & Diagnostics", "Peak speed, downtime log, connection history"),
-        Triple(SettingsRoute.TRENDS_ALERTS, "Trends & Alerts", "Weekly/monthly trends, spike alerts"),
-        Triple(SettingsRoute.WIFI_RADIO, "Wi-Fi & Radio Reminders", "Low-data nudges, scheduled switch reminders"),
-        Triple(SettingsRoute.APP_BLOCKER, "App Data Blocker", "VPN-based per-app network block"),
-        Triple(SettingsRoute.BACKUP_RESET, "Backup, Reset & Share", "Export/import, clear history, share summary"),
-        Triple(SettingsRoute.ADVANCED, "Advanced", "Cost tracking, trusted networks, security heuristics"),
+        MenuEntry(SettingsRoute.APP_LOCK, "App Lock", "Biometric or PIN gate for the app", Icons.Outlined.Lock),
+        MenuEntry(SettingsRoute.DIAGNOSTICS, "Speed & Diagnostics", "Peak speed, downtime log, connection history", Icons.Outlined.Speed),
+        MenuEntry(SettingsRoute.TRENDS_ALERTS, "Trends & Alerts", "Weekly/monthly trends, spike alerts", Icons.Outlined.BarChart),
+        MenuEntry(SettingsRoute.WIFI_RADIO, "Wi-Fi & Radio Reminders", "Low-data nudges, scheduled switch reminders", Icons.Outlined.Wifi),
+        MenuEntry(SettingsRoute.APP_BLOCKER, "App Data Blocker", "VPN-based per-app network block", Icons.Outlined.Block),
+        MenuEntry(SettingsRoute.BACKUP_RESET, "Backup, Reset & Share", "Export/import, clear history, share summary", Icons.Outlined.Save),
+        MenuEntry(SettingsRoute.ADVANCED, "Advanced", "Cost tracking, trusted networks, security heuristics", Icons.Outlined.Tune),
     )
 
     LazyColumn(
@@ -155,8 +171,13 @@ private fun SettingsHub(
             }
         }
 
-        items(menuItems) { (targetRoute, title, subtitle) ->
-            SettingsMenuRow(title = title, subtitle = subtitle, onClick = { onNavigate(targetRoute) })
+        items(menuItems) { entry ->
+            SettingsMenuRow(
+                title = entry.title,
+                subtitle = entry.subtitle,
+                icon = entry.icon,
+                onClick = { onNavigate(entry.route) },
+            )
         }
 
         item {

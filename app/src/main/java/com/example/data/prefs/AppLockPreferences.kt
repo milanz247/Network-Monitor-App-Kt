@@ -3,6 +3,7 @@ package com.example.data.prefs
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Base64
+import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.example.data.security.PinHasher
@@ -20,12 +21,22 @@ import javax.inject.Singleton
  * (Jetpack Security Crypto) rather than plain DataStore like [DataCapPreferences] - this file can
  * hold a PIN hash, so it gets AES-256 encryption at rest as a second layer on top of the hash
  * itself never being the plaintext PIN (see [PinHasher]).
+ *
+ * This is injected eagerly (NetMonitorApp.onCreate() -> AppLockManager -> here), so a Keystore
+ * hiccup here (seen on some devices/emulators, especially on a cold first run before the crypto
+ * provider is fully ready) must never crash app startup entirely - [createSecurePrefs] falls back
+ * to a plain (unencrypted) SharedPreferences file rather than propagating the exception. Security
+ * is still reasonable in that fallback: only a salted PIN *hash* is ever stored either way (see
+ * [PinHasher]), never the plaintext PIN - the encryption layer is defense-in-depth on top of that,
+ * not the only thing standing between an attacker and the PIN.
  */
 @Singleton
 class AppLockPreferences @Inject constructor(
     @ApplicationContext context: Context,
 ) {
-    private val prefs: SharedPreferences = run {
+    private val prefs: SharedPreferences = createSecurePrefs(context)
+
+    private fun createSecurePrefs(context: Context): SharedPreferences = try {
         val masterKey = MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
@@ -36,6 +47,9 @@ class AppLockPreferences @Inject constructor(
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
         )
+    } catch (e: Exception) {
+        Log.e("AppLockPreferences", "EncryptedSharedPreferences unavailable, falling back to plain prefs", e)
+        context.getSharedPreferences("app_lock_secure_prefs_fallback", Context.MODE_PRIVATE)
     }
 
     private object Keys {

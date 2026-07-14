@@ -33,15 +33,20 @@ class NetMonitorApp : Application(), Configuration.Provider {
 
         // Phase 0 (App Lock): ProcessLifecycleOwner only fires onStop/onStart when the whole app
         // process has no visible activity left, so this correctly ignores screen rotations and
-        // transient system/permission dialogs - see AppLockManager's class doc.
-        ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
-            override fun onStop(owner: LifecycleOwner) {
-                appLockManager.onAppBackgrounded()
-            }
+        // transient system/permission dialogs - see AppLockManager's class doc. Guarded so a
+        // problem here (e.g. an unexpected AppLockManager failure) can never take down app startup.
+        try {
+            ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
+                override fun onStop(owner: LifecycleOwner) {
+                    appLockManager.onAppBackgrounded()
+                }
 
-            override fun onStart(owner: LifecycleOwner) {
-                appLockManager.onAppForegrounded()
-            }
-        })
+                override fun onStart(owner: LifecycleOwner) {
+                    appLockManager.onAppForegrounded()
+                }
+            })
+        } catch (e: Exception) {
+            android.util.Log.e("NetMonitorApp", "Failed to register app-lock lifecycle observer", e)
+        }
     }
 }

@@ -17,7 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
@@ -158,8 +158,9 @@ private fun DashboardHeader(
                     .testTag("service_toggle_button"),
             ) {
                 Icon(
-                    imageVector = if (isServiceRunning) Icons.Default.PlayArrow else Icons.Default.Close,
-                    contentDescription = "Toggle tracker",
+                    // Shows the action a tap performs: pause while running, play while stopped.
+                    imageVector = if (isServiceRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (isServiceRunning) "Pause tracker" else "Start tracker",
                     tint = if (isServiceRunning) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.size(20.dp),
                 )

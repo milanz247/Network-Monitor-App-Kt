@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -21,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.example.ui.theme.AppShapes
 import com.example.ui.theme.LocalExtendedColors
@@ -93,25 +96,40 @@ fun SettingsToggleRow(title: String, subtitle: String? = null, checked: Boolean,
 
 /** A clickable row that opens a Settings sub-screen - the hub's menu items. */
 @Composable
-fun SettingsMenuRow(title: String, subtitle: String, onClick: () -> Unit) {
+fun SettingsMenuRow(title: String, subtitle: String, icon: ImageVector? = null, onClick: () -> Unit) {
+    val extended = LocalExtendedColors.current
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = AppShapes.card,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, LocalExtendedColors.current.cardBorder),
+        border = BorderStroke(1.dp, extended.cardBorder),
         onClick = onClick,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(20.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-                Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = LocalExtendedColors.current.textSecondary)
+                Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = extended.textSecondary)
             }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = extended.textSecondary,
+                modifier = Modifier.size(20.dp),
+            )
         }
     }
 }
