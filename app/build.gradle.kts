@@ -125,6 +125,11 @@ dependencies {
   "ksp"(libs.androidx.hilt.compiler)
   implementation(libs.androidx.work.runtime.ktx)
 
+  // Phase 0: App Lock (biometric/PIN gate)
+  implementation(libs.androidx.biometric)
+  implementation(libs.androidx.security.crypto)
+  implementation(libs.androidx.lifecycle.process)
+
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)

@@ -14,6 +14,7 @@ import com.example.data.local.DataUsageDao
 import com.example.domain.model.AppUsageItem
 import com.example.domain.model.AppUsageRanked
 import com.example.domain.model.DualSimUsage
+import com.example.domain.model.HourlyUsage
 import com.example.domain.model.SimUsage
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -57,6 +58,12 @@ class DataUsageRepository @Inject constructor(
                     
                     var wifiBytes = 0L
                     var mobileBytes = 0L
+                    // Phase 2 (#8): background-vs-foreground split, read from the same buckets above
+                    // rather than a second query - NetworkStats.Bucket.getState() already carries it.
+                    var fgWifiBytes = 0L
+                    var bgWifiBytes = 0L
+                    var fgMobileBytes = 0L
+                    var bgMobileBytes = 0L
 
                     // Wi-Fi Usage
                     try {
@@ -70,7 +77,13 @@ class DataUsageRepository @Inject constructor(
                         val bucket = NetworkStats.Bucket()
                         while (wifiStats.hasNextBucket()) {
                             wifiStats.getNextBucket(bucket)
-                            wifiBytes += bucket.rxBytes + bucket.txBytes
+                            val bucketTotal = bucket.rxBytes + bucket.txBytes
+                            wifiBytes += bucketTotal
+                            if (bucket.state == NetworkStats.Bucket.STATE_FOREGROUND) {
+                                fgWifiBytes += bucketTotal
+                            } else {
+                                bgWifiBytes += bucketTotal
+                            }
                         }
                         wifiStats.close()
                     } catch (e: Exception) {
@@ -89,7 +102,13 @@ class DataUsageRepository @Inject constructor(
                         val bucket = NetworkStats.Bucket()
                         while (mobileStats.hasNextBucket()) {
                             mobileStats.getNextBucket(bucket)
-                            mobileBytes += bucket.rxBytes + bucket.txBytes
+                            val bucketTotal = bucket.rxBytes + bucket.txBytes
+                            mobileBytes += bucketTotal
+                            if (bucket.state == NetworkStats.Bucket.STATE_FOREGROUND) {
+                                fgMobileBytes += bucketTotal
+                            } else {
+                                bgMobileBytes += bucketTotal
+                            }
                         }
                         mobileStats.close()
                     } catch (e: Exception) {
@@ -103,7 +122,11 @@ class DataUsageRepository @Inject constructor(
                                 appName = appName,
                                 uid = uid,
                                 wifiBytes = wifiBytes,
-                                mobileBytes = mobileBytes
+                                mobileBytes = mobileBytes,
+                                foregroundWifiBytes = fgWifiBytes,
+                                backgroundWifiBytes = bgWifiBytes,
+                                foregroundMobileBytes = fgMobileBytes,
+                                backgroundMobileBytes = bgMobileBytes,
                             )
                         )
                     }
@@ -132,10 +155,52 @@ class DataUsageRepository @Inject constructor(
                     appName = it.appName,
                     uid = it.uid,
                     wifiBytes = it.wifiBytes,
-                    mobileBytes = it.mobileBytes
+                    mobileBytes = it.mobileBytes,
+                    foregroundWifiBytes = it.foregroundWifiBytes,
+                    backgroundWifiBytes = it.backgroundWifiBytes,
+                    foregroundMobileBytes = it.foregroundMobileBytes,
+                    backgroundMobileBytes = it.backgroundMobileBytes,
                 )
             }
             dao.insertAppDataUsage(entities)
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Phase 2 (#7) - Most Data-Hungry Hour of Day
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * Device-wide (not per-app) usage bucketed into the 24 hours of [dayStartMillis]..+24h.
+     *
+     * [NetworkStatsManager] has no "give me hourly buckets" query - [querySummaryForDevice] always
+     * returns one aggregate for the whole requested range. The documented way to get finer
+     * granularity is exactly this: issue one query per window and sum. 24 calls is cheap enough to
+     * do on-demand (e.g. when a user opens an hourly-breakdown screen) - not worth a new polling
+     * job or a stored `HourlyDataUsage` entity just to avoid it.
+     */
+    suspend fun getHourlyBreakdownForDate(dayStartMillis: Long): List<HourlyUsage> = withContext(Dispatchers.IO) {
+        val hourMillis = 60 * 60 * 1000L
+        (0 until 24).map { hour ->
+            val hourStart = dayStartMillis + hour * hourMillis
+            val hourEnd = (hourStart + hourMillis).coerceAtMost(System.currentTimeMillis())
+            if (hourEnd <= hourStart) {
+                HourlyUsage(hour = hour, wifiBytes = 0L, mobileBytes = 0L)
+            } else {
+                val wifiBytes = try {
+                    val bucket = networkStatsManager.querySummaryForDevice(NetworkCapabilities.TRANSPORT_WIFI, null, hourStart, hourEnd)
+                    bucket.rxBytes + bucket.txBytes
+                } catch (e: Exception) {
+                    0L
+                }
+                val mobileBytes = try {
+                    val bucket = networkStatsManager.querySummaryForDevice(NetworkCapabilities.TRANSPORT_CELLULAR, null, hourStart, hourEnd)
+                    bucket.rxBytes + bucket.txBytes
+                } catch (e: Exception) {
+                    0L
+                }
+                HourlyUsage(hour = hour, wifiBytes = wifiBytes, mobileBytes = mobileBytes)
+            }
         }
     }
 

@@ -13,12 +13,16 @@ import androidx.work.WorkerParameters
 import com.example.data.detector.NetworkDetector
 import com.example.data.local.DailyDataUsage
 import com.example.data.local.DataUsageDao
+import com.example.data.prefs.DiagnosticsPreferences
 import com.example.data.repository.DataUsageRepository
+import com.example.data.repository.DiagnosticsRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.util.Calendar
+import java.util.concurrent.TimeUnit
 
 /**
  * Worker that aggregates the daily data usage and per-app usage, saving it to Room.
@@ -34,6 +38,8 @@ class DailyUsageWorker @AssistedInject constructor(
     private val dao: DataUsageDao,
     private val dataUsageRepository: DataUsageRepository,
     private val networkDetector: NetworkDetector,
+    private val diagnosticsRepository: DiagnosticsRepository,
+    private val diagnosticsPreferences: DiagnosticsPreferences,
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -109,6 +115,12 @@ class DailyUsageWorker @AssistedInject constructor(
             val sixtyDaysAgo = dateEpochDay - 60
             dao.deleteDailyDataUsageOlderThan(sixtyDaysAgo)
             dao.deleteAppDataUsageOlderThan(sixtyDaysAgo)
+
+            // Phase 1: prune diagnostics tables to the user-configured retention window (default
+            // 14 days) - piggybacks on this worker's existing 4h schedule rather than adding a new one.
+            val retentionDays = diagnosticsPreferences.settingsFlow.first().speedHistoryRetentionDays
+            val retentionCutoffMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(retentionDays.toLong())
+            diagnosticsRepository.pruneOlderThan(retentionCutoffMs)
 
             // Feature 1/2: re-check the data cap and depletion prediction now that fresh totals exist.
             WorkManager.getInstance(appContext).enqueue(

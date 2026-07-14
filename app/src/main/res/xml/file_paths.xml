@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Phase 4 (#15): scopes the FileProvider to only the cache subfolder ShareUsageCard writes to. -->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path name="shared_cards" path="shared_cards/" />
+</paths>

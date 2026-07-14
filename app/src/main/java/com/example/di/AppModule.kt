@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.example.data.local.ALL_MIGRATIONS
 import com.example.data.local.AppDatabase
 import com.example.data.local.DataUsageDao
+import com.example.data.local.DiagnosticsDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -31,5 +32,10 @@ object AppModule {
     @Provides
     fun provideDataUsageDao(db: AppDatabase): DataUsageDao {
         return db.dataUsageDao()
+    }
+
+    @Provides
+    fun provideDiagnosticsDao(db: AppDatabase): DiagnosticsDao {
+        return db.diagnosticsDao()
     }
 }

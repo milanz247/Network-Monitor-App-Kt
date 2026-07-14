@@ -3,6 +3,7 @@ package com.example.data.local
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.squareup.moshi.JsonClass
 
 /**
  * Entity representing daily aggregated data usage.
@@ -23,6 +24,7 @@ import androidx.room.PrimaryKey
     tableName = "daily_data_usage",
     indices = [Index(value = ["date", "subscriptionId"])]
 )
+@JsonClass(generateAdapter = true) // Phase 4 (#13) - serialized as-is in manual backup/restore, see BackupRepository.
 data class DailyDataUsage(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
@@ -40,13 +42,20 @@ data class DailyDataUsage(
  * @param packageName The package name of the application.
  * @param appName The human-readable name of the app.
  * @param uid The UID of the application.
- * @param wifiBytes Bytes consumed over Wi-Fi by this app on this date.
- * @param mobileBytes Bytes consumed over Mobile Data by this app on this date.
+ * @param wifiBytes Total bytes consumed over Wi-Fi by this app on this date (foreground + background).
+ * @param mobileBytes Total bytes consumed over Mobile Data by this app on this date (foreground + background).
+ * @param foregroundWifiBytes Since v4 (Phase 2 #8) - the [wifiBytes] subset seen while the app was
+ *   in `NetworkStats.Bucket.STATE_FOREGROUND`. Rows written before v4 default this to 0 (see
+ *   `MIGRATION_3_4`) - treat a 0/0 split on an old row as "unknown", not "all background".
+ * @param backgroundWifiBytes See [foregroundWifiBytes]; `wifiBytes - foregroundWifiBytes` for new rows.
+ * @param foregroundMobileBytes See [foregroundWifiBytes], mobile equivalent.
+ * @param backgroundMobileBytes See [backgroundWifiBytes], mobile equivalent.
  */
 @Entity(
     tableName = "app_data_usage",
     indices = [Index(value = ["date", "packageName"])]
 )
+@JsonClass(generateAdapter = true) // Phase 4 (#13) - serialized as-is in manual backup/restore, see BackupRepository.
 data class AppDataUsage(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
@@ -55,7 +64,11 @@ data class AppDataUsage(
     val appName: String,
     val uid: Int,
     val wifiBytes: Long,
-    val mobileBytes: Long
+    val mobileBytes: Long,
+    val foregroundWifiBytes: Long = 0,
+    val backgroundWifiBytes: Long = 0,
+    val foregroundMobileBytes: Long = 0,
+    val backgroundMobileBytes: Long = 0,
 )
 
 /**

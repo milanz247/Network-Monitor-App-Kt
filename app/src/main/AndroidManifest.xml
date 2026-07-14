@@ -9,6 +9,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Phase 0: App Lock (biometric unlock). Normal permission, granted automatically at install. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <!-- Phase 1: Wi-Fi RSSI sampling (SignalStrengthReader). Normal permission. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
     <application
         android:name=".NetMonitorApp"
@@ -25,6 +29,27 @@
             android:name=".service.NetworkSpeedService"
             android:foregroundServiceType="dataSync"
             android:exported="false" />
+
+        <!-- Phase 3 (#12): VPN-based selective per-app blocking - see LocalVpnBlockerService's class doc. -->
+        <service
+            android:name=".vpn.LocalVpnBlockerService"
+            android:exported="true"
+            android:permission="android.permission.BIND_VPN_SERVICE">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
+
+        <!-- Phase 4 (#15): shareable usage-summary card - content:// Uris only, see ShareUsageCard. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <receiver
             android:name=".receiver.BootReceiver"

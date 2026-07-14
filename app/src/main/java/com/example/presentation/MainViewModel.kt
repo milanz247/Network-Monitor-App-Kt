@@ -9,10 +9,15 @@ import com.example.data.detector.NetworkDetector
 import com.example.data.local.DailyDataUsage
 import com.example.data.local.DataUsageDao
 import com.example.data.repository.DataUsageRepository
+import com.example.domain.model.AppLockSettings
 import com.example.domain.model.AppUsageItem
 import com.example.domain.model.ConnectionState
+import com.example.domain.model.LockState
 import com.example.domain.model.SpeedData
+import com.example.domain.model.UnlockMethod
 import com.example.domain.repository.SpeedRepository
+import com.example.domain.security.AppLockManager
+import com.example.domain.security.BiometricAvailability
 import com.example.presentation.permission.PermissionHelper
 import com.example.service.NetworkSpeedService
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -32,8 +37,31 @@ class MainViewModel @Inject constructor(
     private val networkDetector: NetworkDetector,
     private val speedRepository: SpeedRepository,
     private val dataUsageDao: DataUsageDao,
-    private val dataUsageRepository: DataUsageRepository
+    private val dataUsageRepository: DataUsageRepository,
+    private val appLockManager: AppLockManager,
 ) : ViewModel() {
+
+    // Phase 0 - App Lock hook points. No lock-screen UI is built yet; these exist so a future
+    // Settings screen / top-level composable can wire up without touching AppLockManager directly.
+    val lockState: StateFlow<LockState> = appLockManager.lockState
+    val appLockSettings: StateFlow<AppLockSettings> = appLockManager.settingsFlow
+
+    fun biometricAvailability(): BiometricAvailability = appLockManager.biometricAvailability()
+
+    fun setAppLockEnabled(enabled: Boolean) = appLockManager.setLockEnabled(enabled)
+
+    fun setAppLockUnlockMethod(method: UnlockMethod) = appLockManager.setUnlockMethod(method)
+
+    fun setAppLockAutoLockDelaySeconds(seconds: Int) = appLockManager.setAutoLockDelaySeconds(seconds)
+
+    fun setAppLockPin(pin: String) = appLockManager.setPin(pin)
+
+    fun changeAppLockPin(oldPin: String, newPin: String): Boolean = appLockManager.changePin(oldPin, newPin)
+
+    fun verifyAppLockPin(pin: String): Boolean = appLockManager.verifyPin(pin)
+
+    /** Call after a successful biometric prompt or correct PIN entry to dismiss the lock screen. */
+    fun unlockApp() = appLockManager.unlock()
 
     // Permissions State
     private val _permissionsGranted = MutableStateFlow(false)

@@ -32,10 +32,29 @@ interface DataUsageDao {
     @Query("DELETE FROM daily_data_usage WHERE date < :cutoffDate")
     suspend fun deleteDailyDataUsageOlderThan(cutoffDate: Long)
 
+    /** Phase 4 (#13) - full-table read for backup export. */
+    @Query("SELECT * FROM daily_data_usage")
+    suspend fun getAllDailyDataUsage(): List<DailyDataUsage>
+
+    /** Phase 4 (#13) - bulk insert for backup restore; REPLACE so re-importing the same backup twice is idempotent. */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAllDailyDataUsage(rows: List<DailyDataUsage>)
+
+    /** Phase 4 (#14) - preview/confirm delete contract, see DataResetRepository. */
+    @Query("SELECT COUNT(*) FROM daily_data_usage WHERE date >= :startDate AND date <= :endDate")
+    suspend fun countDailyDataUsageInRange(startDate: Long, endDate: Long): Int
+
+    @Query("DELETE FROM daily_data_usage WHERE date >= :startDate AND date <= :endDate")
+    suspend fun deleteDailyDataUsageInRange(startDate: Long, endDate: Long)
+
     // App Data Usage Queries
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAppDataUsage(usages: List<AppDataUsage>)
+
+    /** Phase 4 (#13) - full-table read for backup export. */
+    @Query("SELECT * FROM app_data_usage")
+    suspend fun getAllAppDataUsage(): List<AppDataUsage>
 
     @Query("SELECT * FROM app_data_usage WHERE date = :date ORDER BY (wifiBytes + mobileBytes) DESC")
     fun getTopAppsByUsageForDate(date: Long): Flow<List<AppDataUsage>>
@@ -62,4 +81,11 @@ interface DataUsageDao {
 
     @Query("DELETE FROM app_data_usage WHERE date < :cutoffDate")
     suspend fun deleteAppDataUsageOlderThan(cutoffDate: Long)
+
+    /** Phase 4 (#14) - preview/confirm delete contract, see DataResetRepository. */
+    @Query("SELECT COUNT(*) FROM app_data_usage WHERE date >= :startDate AND date <= :endDate")
+    suspend fun countAppDataUsageInRange(startDate: Long, endDate: Long): Int
+
+    @Query("DELETE FROM app_data_usage WHERE date >= :startDate AND date <= :endDate")
+    suspend fun deleteAppDataUsageInRange(startDate: Long, endDate: Long)
 }
