@@ -1,0 +1,6 @@
+{
+  "name": "Net Monitor",
+  "description": "Background network speed and data usage tracking service.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
