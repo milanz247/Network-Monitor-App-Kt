@@ -7,7 +7,10 @@ import android.net.NetworkCapabilities
 import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.example.data.detector.NetworkDetector
 import com.example.data.local.DailyDataUsage
 import com.example.data.local.DataUsageDao
 import com.example.data.repository.DataUsageRepository
@@ -20,13 +23,17 @@ import java.util.Calendar
 /**
  * Worker that aggregates the daily data usage and per-app usage, saving it to Room.
  * Scheduled to run periodically and at the end of the day.
+ *
+ * Feature 5 (Dual-SIM): persists one Wi-Fi bucket row (subscriptionId = null) plus one mobile
+ * bucket row per active SIM, instead of a single combined-mobile row - see [DailyDataUsage].
  */
 @HiltWorker
 class DailyUsageWorker @AssistedInject constructor(
     @Assisted private val appContext: Context,
     @Assisted workerParams: WorkerParameters,
     private val dao: DataUsageDao,
-    private val dataUsageRepository: DataUsageRepository
+    private val dataUsageRepository: DataUsageRepository,
+    private val networkDetector: NetworkDetector,
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -46,13 +53,11 @@ class DailyUsageWorker @AssistedInject constructor(
             calendar.set(Calendar.MINUTE, 59)
             calendar.set(Calendar.SECOND, 59)
             val endOfDay = calendar.timeInMillis
-            
+
             val dateEpochDay = startOfDay / 86400000L
 
+            // Wi-Fi bucket (subscriptionId = null)
             var totalWifi = 0L
-            var totalMobile = 0L
-
-            // Wi-Fi Summary
             try {
                 val wifiBucket = networkStatsManager.querySummaryForDevice(
                     NetworkCapabilities.TRANSPORT_WIFI,
@@ -65,30 +70,36 @@ class DailyUsageWorker @AssistedInject constructor(
                 Log.w("DailyUsageWorker", "Failed to query wifi summary", e)
             }
 
-            // Mobile Summary
-            try {
-                val mobileBucket = networkStatsManager.querySummaryForDevice(
-                    NetworkCapabilities.TRANSPORT_CELLULAR,
-                    null,
-                    startOfDay,
-                    endOfDay
+            val existingWifiRow = dao.getDailyDataUsageForBucket(dateEpochDay, null)
+            dao.upsertDailyDataUsage(
+                DailyDataUsage(
+                    id = existingWifiRow?.id ?: 0,
+                    date = dateEpochDay,
+                    wifiBytes = totalWifi,
+                    mobileBytes = 0L,
+                    carrierName = null,
+                    subscriptionId = null,
                 )
-                totalMobile = mobileBucket.rxBytes + mobileBucket.txBytes
-            } catch (e: Exception) {
-                Log.w("DailyUsageWorker", "Failed to query mobile summary", e)
-            }
-
-            // Check if record exists for today
-            val existing = dao.getDailyDataUsageSync(dateEpochDay)
-            val dailyUsage = DailyDataUsage(
-                id = existing?.id ?: 0,
-                date = dateEpochDay,
-                wifiBytes = totalWifi,
-                mobileBytes = totalMobile,
-                carrierName = existing?.carrierName // Carrier name is updated elsewhere or can be fetched
             )
-            
-            dao.upsertDailyDataUsage(dailyUsage)
+
+            // One mobile bucket per active SIM (Feature 5). Falls back to a single best-effort
+            // bucket attributed to the default-data SIM when precise per-SIM stats aren't available
+            // - see DataUsageRepository.fetchMobileUsagePerSim for the platform restriction.
+            val activeSims = networkDetector.getActiveSims()
+            val perSimUsage = dataUsageRepository.fetchMobileUsagePerSim(startOfDay, endOfDay, activeSims)
+            for (simUsage in perSimUsage) {
+                val existingSimRow = dao.getDailyDataUsageForBucket(dateEpochDay, simUsage.subscriptionId)
+                dao.upsertDailyDataUsage(
+                    DailyDataUsage(
+                        id = existingSimRow?.id ?: 0,
+                        date = dateEpochDay,
+                        wifiBytes = 0L,
+                        mobileBytes = simUsage.mobileBytes,
+                        carrierName = simUsage.carrierName,
+                        subscriptionId = simUsage.subscriptionId,
+                    )
+                )
+            }
 
             // Also aggregate per-app usage
             val appUsageList = dataUsageRepository.fetchAppUsageForPeriod(startOfDay, endOfDay)
@@ -98,6 +109,11 @@ class DailyUsageWorker @AssistedInject constructor(
             val sixtyDaysAgo = dateEpochDay - 60
             dao.deleteDailyDataUsageOlderThan(sixtyDaysAgo)
             dao.deleteAppDataUsageOlderThan(sixtyDaysAgo)
+
+            // Feature 1/2: re-check the data cap and depletion prediction now that fresh totals exist.
+            WorkManager.getInstance(appContext).enqueue(
+                OneTimeWorkRequestBuilder<DataCapCheckWorker>().build()
+            )
 
             return@withContext Result.success()
 

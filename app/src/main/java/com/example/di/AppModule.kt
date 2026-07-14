@@ -2,6 +2,7 @@ package com.example.di
 
 import android.content.Context
 import androidx.room.Room
+import com.example.data.local.ALL_MIGRATIONS
 import com.example.data.local.AppDatabase
 import com.example.data.local.DataUsageDao
 import dagger.Module
@@ -23,7 +24,7 @@ object AppModule {
             AppDatabase::class.java,
             "net_monitor_db"
         )
-        .fallbackToDestructiveMigration() // Note: For production updates, implement Room migrations
+        .addMigrations(*ALL_MIGRATIONS)
         .build()
     }
 

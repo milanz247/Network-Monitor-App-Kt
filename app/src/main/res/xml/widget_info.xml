@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  updatePeriodMillis is 0 on purpose: the system's own widget update alarm has an enforced floor
+  around 30 minutes regardless of what's set here, which is nowhere near "live". Instead, updates
+  are pushed on demand from NetworkSpeedService (see WidgetUpdater) at a much shorter, throttled
+  interval - see the battery-tradeoff comment in NetworkSpeedService.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="180dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="3"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/widget_loading"
+    android:previewImage="@drawable/ic_launcher_foreground"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen" />

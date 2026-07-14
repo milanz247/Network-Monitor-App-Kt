@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Net Monitor</string>
+    <string name="widget_label">Net Monitor</string>
 </resources>

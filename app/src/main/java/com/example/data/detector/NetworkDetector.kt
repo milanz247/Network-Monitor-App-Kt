@@ -15,6 +15,16 @@ import kotlinx.coroutines.flow.callbackFlow
 import javax.inject.Inject
 
 /**
+ * One active SIM as reported by [SubscriptionManager] (Feature 5). This enumeration works on any
+ * regular (non-privileged) app - it does not require the IMSI, unlike per-SIM byte attribution.
+ */
+data class SimInfo(
+    val subscriptionId: Int,
+    val carrierName: String?,
+    val isDefaultData: Boolean,
+)
+
+/**
  * Detects the real-time active network connection and fetches carrier information.
  * Uses ConnectivityManager.NetworkCallback to observe changes.
  */
@@ -72,6 +82,26 @@ class NetworkDetector @Inject constructor(
 
         awaitClose {
             connectivityManager.unregisterNetworkCallback(callback)
+        }
+    }
+
+    /**
+     * Enumerates active SIMs for Feature 5 (Dual-SIM). Requires only READ_PHONE_STATE (already
+     * declared in the manifest) - deliberately does NOT touch [TelephonyManager.getSubscriberId],
+     * which needs READ_PRIVILEGED_PHONE_STATE and throws SecurityException for regular apps.
+     */
+    fun getActiveSims(): List<SimInfo> {
+        return try {
+            val defaultDataSubId = SubscriptionManager.getDefaultDataSubscriptionId()
+            subscriptionManager.activeSubscriptionInfoList.orEmpty().map { info ->
+                SimInfo(
+                    subscriptionId = info.subscriptionId,
+                    carrierName = info.carrierName?.toString(),
+                    isDefaultData = info.subscriptionId == defaultDataSubId,
+                )
+            }
+        } catch (e: SecurityException) {
+            emptyList()
         }
     }
 
