@@ -3,6 +3,7 @@ package com.example
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.example.worker.WorkScheduler
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -15,4 +16,10 @@ class NetMonitorApp : Application(), Configuration.Provider {
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
             .build()
+
+    override fun onCreate() {
+        super.onCreate()
+        // Ensure daily usage aggregation runs from first install onward, not just after a reboot.
+        WorkScheduler.scheduleDailyUsageWorker(this)
+    }
 }

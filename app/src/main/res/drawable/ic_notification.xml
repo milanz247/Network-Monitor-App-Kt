@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status-bar notification icon: flat white silhouette (system applies its own tint). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FFFFFFFF">
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M7,12 L9,12 L9,17 L7,17 Z
+                           M10.5,9 L12.5,9 L12.5,17 L10.5,17 Z
+                           M14,6 L16,6 L16,17 L14,17 Z" />
+</vector>

@@ -4,14 +4,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import androidx.work.Constraints
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
 import com.example.service.NetworkSpeedService
-import com.example.worker.DailyUsageWorker
-import java.util.concurrent.TimeUnit
+import com.example.worker.WorkScheduler
 
 /**
  * Receiver that restarts the NetworkSpeedService and re-enqueues WorkManager jobs
@@ -30,20 +24,7 @@ class BootReceiver : BroadcastReceiver() {
             }
 
             // Re-enqueue WorkManager jobs
-            val constraints = Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
-                .setRequiresBatteryNotLow(true)
-                .build()
-
-            val dailyWorkRequest = PeriodicWorkRequestBuilder<DailyUsageWorker>(4, TimeUnit.HOURS)
-                .setConstraints(constraints)
-                .build()
-
-            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-                "DailyUsageWorker",
-                ExistingPeriodicWorkPolicy.KEEP,
-                dailyWorkRequest
-            )
+            WorkScheduler.scheduleDailyUsageWorker(context)
         }
     }
 }

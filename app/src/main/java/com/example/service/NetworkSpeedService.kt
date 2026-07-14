@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import com.example.R
 import com.example.domain.repository.SpeedRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -106,7 +107,7 @@ class NetworkSpeedService : Service() {
         return NotificationCompat.Builder(this, channelId)
             .setContentTitle("Network Speed")
             .setContentText(contentText)
-            .setSmallIcon(android.R.drawable.stat_sys_download) // Placeholder icon
+            .setSmallIcon(R.drawable.ic_notification)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .build()
